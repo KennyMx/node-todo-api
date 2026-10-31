@@ -79,8 +79,71 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, todo);
     }
 
+    // PATCH /todos/:id -> update a todo
+    if (match && req.method === "PATCH") {
+      const todo = todos.find(item => item.id === id);
+
+      // check if todo exists
+      if (!todo) {
+        return send(res, 404, { error: "Todo not found" });
+      }
+
+      const body = await readBody(req);
+
+      // check title if provided
+      if (
+        body.title !== undefined &&
+        (typeof body.title !== "string" || !body.title.trim())
+      ) {
+        return send(res, 400, { error: "Title must be nonempty" });
+      }
+
+      // completed must be a boolean
+      if (
+        body.completed !== undefined &&
+        typeof body.completed !== "boolean"
+      ) {
+        return send(res, 400, { error: "Completed must be a boolean" });
+      }
+
+      // apply changes after validation
+      if (body.title !== undefined) {
+        todo.title = body.title.trim();
+      }
+
+      if (body.completed !== undefined) {
+        todo.completed = body.completed;
+      }
+
+      return send(res, 200, todo);
+    }
+
+    // DELETE /todos/:id -> remove a todo
+    if (match && req.method === "DELETE") {
+      const index = todos.findIndex(item => item.id === id);
+
+      // check if todo exists
+      if (index === -1) {
+        return send(res, 404, { error: "Todo not found" });
+      }
+
+      todos.splice(index, 1);
+
+      // return success with no body
+      res.writeHead(204);
+      return res.end();
+    }
+
+    // reject unsupported methods
+    if (
+      path === "/todos" ||
+      (match && todos.some(item => item.id === id))
+    ) {
+      return send(res, 405, { error: "Method not allowed" });
+    }
     // reject unknown paths
     return send(res, 404, { error: "Not found" });
+
   } catch {
     // reject invalid req body
     return send(res, 400, { error: "Invalid request body" });
