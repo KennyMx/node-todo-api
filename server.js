@@ -35,6 +35,10 @@ async function readBody(req) {
 const server = http.createServer(async (req, res) => {
   // get path without query parameters
   const path = new URL(req.url, "http://localhost").pathname;
+  
+  // get todo id from the path with regex
+  const match = path.match(/^\/todos\/(\d+)$/);
+  const id = match ? Number(match[1]) : null;
 
   try {
     // GET /todos -> return all todos
@@ -61,6 +65,18 @@ const server = http.createServer(async (req, res) => {
       // store the todo and return HTTP 201
       todos.push(newTodo);
       return send(res, 201, newTodo);
+    }
+
+    // GET /todos/:id -> return one todo
+    if (match && req.method === "GET") {
+      const todo = todos.find(item => item.id === id);
+
+      // check if todo exists
+      if (!todo) {
+        return send(res, 404, { error: "Todo not found" });
+      }
+
+      return send(res, 200, todo);
     }
 
     // reject unknown paths
