@@ -1,9 +1,7 @@
 // use nodes built-in HTTP module
 const http = require("node:http");
 
-// use array to store todos in memory and incrementing ids
-const todos = [];
-let nextId = 1;
+const { listTodos, findTodo, createTodo, deleteTodo } = require("./store");
 
 // send an http status and json response
 function send(res, status, data) {
@@ -43,7 +41,7 @@ const server = http.createServer(async (req, res) => {
   try {
     // GET /todos -> return all todos
     if (path === "/todos" && req.method === "GET") {
-      return send(res, 200, todos);
+      return send(res, 200, listTodos());
     }
 
     // POST /todos -> create a new todo
@@ -56,20 +54,15 @@ const server = http.createServer(async (req, res) => {
       }
 
       // assign an id to the new todo
-      const newTodo = {
-        id: nextId++,
-        title: body.title.trim(),
-        completed: false // by default
-      };
+      const newTodo = createTodo(body.title.trim());
 
       // store the todo and return HTTP 201
-      todos.push(newTodo);
       return send(res, 201, newTodo);
     }
 
     // GET /todos/:id -> return one todo
     if (match && req.method === "GET") {
-      const todo = todos.find(item => item.id === id);
+      const todo = findTodo(id);
 
       // check if todo exists
       if (!todo) {
@@ -81,7 +74,7 @@ const server = http.createServer(async (req, res) => {
 
     // PATCH /todos/:id -> update a todo
     if (match && req.method === "PATCH") {
-      const todo = todos.find(item => item.id === id);
+      const todo = findTodo(id);
 
       // check if todo exists
       if (!todo) {
@@ -120,14 +113,10 @@ const server = http.createServer(async (req, res) => {
 
     // DELETE /todos/:id -> remove a todo
     if (match && req.method === "DELETE") {
-      const index = todos.findIndex(item => item.id === id);
-
       // check if todo exists
-      if (index === -1) {
+      if (!deleteTodo(id)) {
         return send(res, 404, { error: "Todo not found" });
       }
-
-      todos.splice(index, 1);
 
       // return success with no body
       res.writeHead(204);
@@ -137,7 +126,7 @@ const server = http.createServer(async (req, res) => {
     // reject unsupported methods
     if (
       path === "/todos" ||
-      (match && todos.some(item => item.id === id))
+      (match && findTodo(id))
     ) {
       return send(res, 405, { error: "Method not allowed" });
     }
