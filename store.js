@@ -13,11 +13,12 @@ function findTodo(id) {
 }
 
 // create and store a todo
-function createTodo(title, ownerId) {
+function createTodo(title, ownerId, category = "general") {
   const todo = {
     id: nextId++,
     title,
     ownerId,
+    category,
     completed: false // by default
   };
 

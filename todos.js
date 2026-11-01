@@ -4,7 +4,8 @@ const { authenticate } = require("./auth");
 // handle todo requests
 async function handleTodos(req, res, send, readBody) {
   // get path without query parameters
-  const path = new URL(req.url, "http://localhost").pathname;
+  const url = new URL(req.url, "http://localhost");
+  const path = url.pathname;
 
   // get todo id from the path with regex
   const match = path.match(/^\/todos\/(\d+)$/);
@@ -12,7 +13,37 @@ async function handleTodos(req, res, send, readBody) {
 
   // GET /todos -> return all todos
   if (path === "/todos" && req.method === "GET") {
-    return send(res, 200, listTodos());
+    const title = url.searchParams.get("title");
+    const category = url.searchParams.get("category");
+    const completed = url.searchParams.get("completed");
+
+    // check completed filter is true or false
+    if (completed !== null && completed !== "true" && completed !== "false") {
+      return send(res, 400, { error: "Completed filter must be true or false" });
+    }
+
+    let results = listTodos();
+
+    // search title without matching case
+    if (title !== null) {
+      results = results.filter(todo =>
+        todo.title.toLowerCase().includes(title.trim().toLowerCase())
+      );
+    }
+
+    // match category without matching case
+    if (category !== null) {
+      results = results.filter(todo =>
+        todo.category.toLowerCase() === category.trim().toLowerCase()
+      );
+    }
+
+    // filter by completion status
+    if (completed !== null) {
+      results = results.filter(todo => todo.completed === (completed === "true"));
+    }
+
+    return send(res, 200, results);
   }
 
   // require login to create update or delete todos
@@ -34,8 +65,18 @@ async function handleTodos(req, res, send, readBody) {
       return send(res, 400, { error: "Title is required" });
     }
 
+    // check category if provided
+    if (
+      body.category !== undefined &&
+      (typeof body.category !== "string" || !body.category.trim())
+    ) {
+      return send(res, 400, { error: "Category must be nonempty" });
+    }
+
+    const category = body.category === undefined ? "general" : body.category.trim();
+
     // assign an id to the new todo
-    const newTodo = createTodo(body.title.trim(), user.id);
+    const newTodo = createTodo(body.title.trim(), user.id, category);
 
     // store the todo and return HTTP 201
     return send(res, 201, newTodo);
@@ -69,6 +110,23 @@ async function handleTodos(req, res, send, readBody) {
 
     const body = await readBody(req);
 
+    // require at least one field to update
+    if (
+      body.title === undefined &&
+      body.category === undefined &&
+      body.completed === undefined
+    ) {
+      return send(res, 400, { error: "Provide title category or completed" });
+    }
+
+    // check category if provided
+    if (
+      body.category !== undefined &&
+      (typeof body.category !== "string" || !body.category.trim())
+    ) {
+      return send(res, 400, { error: "Category must be nonempty" });
+    }
+
     // check title if provided
     if (
       body.title !== undefined &&
@@ -88,6 +146,10 @@ async function handleTodos(req, res, send, readBody) {
     // apply changes after validation
     if (body.title !== undefined) {
       todo.title = body.title.trim();
+    }
+
+    if (body.category !== undefined) {
+      todo.category = body.category.trim();
     }
 
     if (body.completed !== undefined) {
