@@ -1,4 +1,5 @@
 const { listTodos, findTodo, createTodo, deleteTodo } = require("./store");
+const { authenticate } = require("./auth");
 
 // handle todo requests
 async function handleTodos(req, res, send, readBody) {
@@ -14,6 +15,16 @@ async function handleTodos(req, res, send, readBody) {
     return send(res, 200, listTodos());
   }
 
+  // require login to create update or delete todos
+  const isWrite =
+    (path === "/todos" && req.method === "POST") ||
+    (match && ["PATCH", "DELETE"].includes(req.method));
+  const user = isWrite ? authenticate(req) : null;
+
+  if (isWrite && !user) {
+    return send(res, 401, { error: "Login required" });
+  }
+
   // POST /todos -> create a new todo
   if (path === "/todos" && req.method === "POST") {
     const body = await readBody(req);
@@ -24,7 +35,7 @@ async function handleTodos(req, res, send, readBody) {
     }
 
     // assign an id to the new todo
-    const newTodo = createTodo(body.title.trim());
+    const newTodo = createTodo(body.title.trim(), user.id);
 
     // store the todo and return HTTP 201
     return send(res, 201, newTodo);
@@ -49,6 +60,11 @@ async function handleTodos(req, res, send, readBody) {
     // check if todo exists
     if (!todo) {
       return send(res, 404, { error: "Todo not found" });
+    }
+
+    // only the owner can update this todo
+    if (todo.ownerId !== user.id) {
+      return send(res, 403, { error: "Only the owner can change this todo" });
     }
 
     const body = await readBody(req);
@@ -83,10 +99,19 @@ async function handleTodos(req, res, send, readBody) {
 
   // DELETE /todos/:id -> remove a todo
   if (match && req.method === "DELETE") {
+    const todo = findTodo(id);
+
     // check if todo exists
-    if (!deleteTodo(id)) {
+    if (!todo) {
       return send(res, 404, { error: "Todo not found" });
     }
+
+    // only the owner can delete this todo
+    if (todo.ownerId !== user.id) {
+      return send(res, 403, { error: "Only the owner can change this todo" });
+    }
+
+    deleteTodo(id);
 
     // return success with no body
     res.writeHead(204);
