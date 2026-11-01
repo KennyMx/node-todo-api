@@ -2,6 +2,7 @@
 const http = require("node:http");
 
 const { handleTodos } = require("./todos");
+const { login } = require("./auth");
 
 // send an http status and json response
 function send(res, status, data) {
@@ -32,6 +33,38 @@ async function readBody(req) {
 // handle incoming API requests
 const server = http.createServer(async (req, res) => {
   try {
+    const path = new URL(req.url, "http://localhost").pathname;
+
+    // POST /login -> check credentials and return a token
+    if (path === "/login") {
+      if (req.method !== "POST") {
+        return send(res, 405, { error: "Method not allowed" });
+      }
+
+      const body = await readBody(req);
+
+      // require username and password
+      if (
+        typeof body.username !== "string" ||
+        !body.username.trim() ||
+        typeof body.password !== "string" ||
+        !body.password
+      ) {
+        return send(res, 400, {
+          error: "Username and password are required"
+        });
+      }
+
+      const result = login(body.username, body.password);
+
+      // reject incorrect credentials
+      if (!result) {
+        return send(res, 401, { error: "Invalid credentials" });
+      }
+
+      return send(res, 200, result);
+    }
+
     await handleTodos(req, res, send, readBody);
   } catch {
     // reject invalid req body
