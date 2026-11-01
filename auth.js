@@ -12,10 +12,10 @@ function createUser(id, username, password) {
   };
 }
 
-// demo users for the exercise
+// test users
 const users = [
-  createUser(1, "alice", "alice-password"),
-  createUser(2, "bob", "bob-password")
+  createUser(1, "alice", process.env.ALICE_PASSWORD || "alice-password"),
+  createUser(2, "bob", process.env.BOB_PASSWORD || "bob-password")
 ];
 
 // store login sessions in memory
