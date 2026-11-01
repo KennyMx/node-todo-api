@@ -3,6 +3,10 @@ const assert = require("node:assert/strict");
 const server = require("./server");
 const { authenticate } = require("./auth");
 
+// use custom passwords or the defaults
+const alicePassword = process.env.ALICE_PASSWORD || "alice-password";
+const bobPassword = process.env.BOB_PASSWORD || "bob-password";
+
 let base;
 let alice;
 let bob;
@@ -48,10 +52,10 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 
   const first = await request("POST", "/login", {
-    username: "alice", password: "alice-password"
+    username: "alice", password: alicePassword
   });
   const second = await request("POST", "/login", {
-    username: "bob", password: "bob-password"
+    username: "bob", password: bobPassword
   });
 
   assert.equal(first.status, 200);
@@ -69,7 +73,7 @@ after(async () => {
 
 test("login returns a token without password details", async () => {
   const result = await request("POST", "/login", {
-    username: "alice", password: "alice-password"
+    username: "alice", password: alicePassword
   });
 
   assert.equal(result.status, 200);
@@ -80,7 +84,7 @@ test("login returns a token without password details", async () => {
 
   assert.equal((await request("POST", "/login", {})).status, 400);
   assert.equal((await request("POST", "/login", {
-    username: "alice", password: "wrong"
+    username: "alice", password: alicePassword + "-wrong"
   })).status, 401);
 });
 
@@ -211,7 +215,7 @@ test("the owner can delete a todo", async () => {
 
 test("expired tokens cannot be used again", async () => {
   const result = await request("POST", "/login", {
-    username: "alice", password: "alice-password"
+    username: "alice", password: alicePassword
   });
   const token = result.body.token;
   const now = Date.now;
